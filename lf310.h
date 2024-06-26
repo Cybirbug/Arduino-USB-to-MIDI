@@ -5,6 +5,11 @@
 /// Author: Alan Ford
 ////////////////////////////////////////////////////////////////////////////////
 
+//Nick Marstol version June 2024
+//moved .cpp file here to fix compilation errors, june 2024
+//fixed buttons marking off when a new button is pressed
+//todo: make analog triggers work properly? Might not be doable in D mode
+/////////////////////////////////////////////////////////////////////////////////
 #if !defined(__LF310_H__)
 #define __LF310_H__
 
@@ -29,7 +34,7 @@ enum DPADEnum {
 ///////////////////////////////////////////////////////////////////////////////
 union LF310DataButtons {
     struct {
-        uint8_t dPad        : 4;
+        uint8_t dPad        : 4;//uses bit fields to compress data more
         uint8_t Xbutton     : 1;
         uint8_t Abutton     : 1;
         uint8_t Bbutton     : 1;
@@ -44,7 +49,7 @@ union LF310DataButtons {
         uint8_t LJSP        : 1;  // Left Joystick "push"
         uint8_t RJSP        : 1;  // Right Joystick "push"
     } __attribute__((packed));
-    uint16_t val;
+    uint16_t val;//total of 16 bits
 } __attribute__((packed));
 
 /////////////////////////////////////////////////////////////////////////
@@ -62,7 +67,7 @@ struct LF310Data {
       uint8_t nonfunc     : 3;
       uint8_t mode        : 1;
       uint8_t nonfunc2    : 4;
-    };
+    }; 
   };
   //uint8_t Byte7;
   //uint8_t Byte8;
@@ -84,7 +89,7 @@ public:
     bool connected() {
         return HIDUniversal::isReady() && HIDUniversal::VID == LF310_VID && HIDUniversal::PID == LF310_PID;
     };
-    //void setLeds(uint16_t leds);
+
     LF310Data lf310Data;
     LF310DataButtons buttonClickState;
     
