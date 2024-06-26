@@ -1,5 +1,7 @@
 Code for an arduino based device to take usb device input data and output MIDI data for control of any hardware or software that accepts MIDI as an input protocol.
 
+![IMG_20240626_141500898](https://github.com/Cybirbug/Arduino-USB-to-MIDI/assets/41763278/6c9e35b6-fa16-49a8-8ebd-f4a89f08e6a5)
+
 Limited intent is for control over a lighting or sound console. Support will probably be limited to one keyboard, mouse, and gamepad, BUT smaller keyboards with fewer keys may be acceptable.
 
 Keyboards output notes based on the ascii value of the key pressed
@@ -24,6 +26,7 @@ More gamepads will probably only be supported if someone else writes a driver an
 
 
 ToDo: 
-- split into files for classes
+- sp
+lit into files for classes
 - mouse wheel support
 - fix lf310 LR trigger values
