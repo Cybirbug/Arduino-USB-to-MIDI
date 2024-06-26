@@ -1,9 +1,25 @@
 /*
- Name:		HID_to_MIDI.ino
  Created:	6/8/2024 6:47:52 AM
- Author:	cybir
+ Author:	Nick Marstol
+
+ ////
+ uses libaries under this license:
+ This software may be distributed and modified under the terms of the GNU
+General Public License version 2 (GPL2) as published by the Free Software
+Foundation and appearing in the file GPL2.TXT included in the packaging of
+this file. Please note that GPL2 Section 2[b] requires that all works based
+on this software must also be made publicly available under the terms of
+the GPL2 ("Copyleft").
+
+////
 mouse and keyboard in boot mode to midi
 mouse uses notes 123-127 because most keyboards don't go that high
+uses libaries:
+https://www.arduino.cc/reference/en/libraries/usb-host-shield-library-2.0/
+https://github.com/AlanFord/Logitech_F310_and_Arduino
+the second includes a patch for the usb shield 2.0 library, June 2024 it still needed patching
+everything seems to work better with a hub as a filter if connected to a PC
+
 */
 
 #include <hidboot.h>
@@ -13,6 +29,10 @@ mouse uses notes 123-127 because most keyboards don't go that high
 #define REPORT_BUFFER_SIZE 128//best way to log for keyboard report data
 #define MOUSE_RESOLUTION 512//higher number means less sensitive mouse
 #define MOUSE_DIVISOR 4//should always be mouseresolution/128
+
+#define MOUSE_NOTE_ON 0x91
+#define KEYBOARD_NOTE_ON 0X90
+#define JOY_NOTE_ON 0x92
 
 #define JOY_OFFSET 102//top channel for keyboards tested so far is 101
 //also the mouse is mapped to start at 123, so this fits perfectly once you add the konami code.
@@ -114,6 +134,7 @@ void sendMidiNoteJoy(byte pitch, byte velocity) {//send noteOn command 0x90 plus
 	Serial.write(0x90);
 	Serial.write(pitch);
 	Serial.write(velocity);
+	konamiCheck(lf310.lf310Data, velocity);//check to see if someone did this
 	//Serial.println("Note: " + String(pitch) + "Vel: " + String(velocity));
 	delay(1);
 }
@@ -124,74 +145,83 @@ void konamiReset() {
 	}
 }
 
-void konamiCheck(LF310Data data) {
-	bool itHappened = false;
+void konamiCheck(LF310Data data, byte vel) {
+	if (vel == 0) return;
 	//code is up up dn dn L R L R B A START
 	if (konami[0] == false) {
-		if (data.btn.dPad == DPAD_UP) konami[0] = true;
+		if (data.btn.dPad == DPAD_UP) { konami[0] = true; return; }
 		else {
 			konamiReset();
 		return;
 		}
 	}
 	else if (konami[1] == false) {
-		if (data.btn.dPad == DPAD_UP) konami[1] = true;
+		if (data.btn.dPad == DPAD_UP) {konami[1] = true; return;
+	}
 		else {
 			konamiReset();
 			return;
 		}
 	}
 	else if (konami[2] == false) {
-		if (data.btn.dPad == DPAD_DOWN) konami[2] = true;
+		if (data.btn.dPad == DPAD_DOWN){ konami[2] = true; return;
+	}
 		else {
 			konamiReset();
 			return;
 		}
 	}
 	else if (konami[10] == false) {
-		if (data.btn.dPad == DPAD_DOWN) konami[10] = true;
+		if (data.btn.dPad == DPAD_DOWN) {konami[10] = true; return;
+	}
 		else {
 			konamiReset();
 			return;
 		}
 	}
 	else if (konami[3] == false) {
-		if (data.btn.dPad == DPAD_LEFT) konami[3] = true;
+		if (data.btn.dPad == DPAD_LEFT) {konami[3] = true; return;
+	}
 		else {
 			konamiReset();
 			return;
 		}
 	}
 	else if (konami[4] == false) {
-		if (data.btn.dPad == DPAD_RIGHT) konami[4] = true;
+		if (data.btn.dPad == DPAD_RIGHT) {konami[4] = true; return;
+	}
 		else {
 			konamiReset();
 			return;
 		}
 	}
 	else if (konami[5] == false) {
-		if (data.btn.dPad == DPAD_LEFT) konami[5] = true;
+		if (data.btn.dPad == DPAD_LEFT) {konami[5] = true; return;
+	}
 		else {
 			konamiReset();
 			return;
 		}
 	}
 	else if (konami[6] == false) {
-		if (data.btn.dPad == DPAD_RIGHT) konami[6] = true;
+		if (data.btn.dPad == DPAD_RIGHT){ konami[6] = true; return;
+	}
 		else {
 			konamiReset();
 			return;
 		}
 	}
 	else if (konami[7] == false) {
-		if (data.btn.Bbutton >0) konami[7] = true;
+		if (data.btn.Bbutton >0) {konami[7] = true; return;
+	}
 		else {
 			konamiReset();
 			return;
 		}
 	}
 	else if (konami[8] == false) {
-		if (data.btn.Abutton > 0) konami[8] = true;
+		if (data.btn.Abutton > 0){ konami[8] = true; return;
+	}
 		else {
 			konamiReset();
 			return;
@@ -200,21 +230,19 @@ void konamiCheck(LF310Data data) {
 	else if (konami[9] == false) {
 		if (data.btn.Startbutton > 0) {
 			konami[9] = true;
-			itHappened = true;
 		}
 		else {
 			konamiReset();
 			return;
 		}
 	}
-
-	if (itHappened)sendMidiNoteJoy(122, 127);
-	delay(25);
-	if (itHappened)sendMidiNoteJoy(122, 0);
-	konamiReset();
+	//Serial.println("Konami!");
+	konamiReset();sendMidiNoteJoy(122, 127);
+	delay(25);//delay one dmx framesendMidiNoteJoy(122, 0);
 }
 
 void lf310JoystickParse() {
+	//Serial.println(lf310.lf310Data.nonfunc);
 	if (lf310.connected()) {
 		if (lf310.lf310Data.X != oldX) {
 			sendMidiNoteJoy(JOY_OFFSET, lf310.lf310Data.X / 2);
@@ -337,7 +365,7 @@ void lf310JoystickParse() {
 			}
 			joyState[12] = lf310.lf310Data.btn.dPad;
 		}
-		konamiCheck(lf310.lf310Data);//check to see if someone did this
+		
 	}
 }
 KbdRptParser KbdPrs;
