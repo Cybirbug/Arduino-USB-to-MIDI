@@ -1,8 +1,11 @@
 Code for an arduino based device to take usb device input data and output MIDI data for control of any hardware or software that accepts MIDI as an input protocol.
 
 Limited intent is for control over a lighting or sound console. Support will probably be limited to one keyboard, mouse, and gamepad, BUT smaller keyboards with fewer keys may be acceptable.
+
 Keyboards output notes based on the ascii value of the key pressed
+
 mice output midi values 123-127
+
 the logitech F310 fits (barely) between the two
 
 there are some gaps in keyboard values that COULD be filled... No reason to do so yet.
