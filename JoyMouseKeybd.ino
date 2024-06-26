@@ -134,70 +134,70 @@ void konamiCheck(LF310Data data) {
 		return;
 		}
 	}
-	if (konami[1] == false) {
+	else if (konami[1] == false) {
 		if (data.btn.dPad == DPAD_UP) konami[1] = true;
 		else {
 			konamiReset();
 			return;
 		}
 	}
-	if (konami[2] == false) {
+	else if (konami[2] == false) {
 		if (data.btn.dPad == DPAD_DOWN) konami[2] = true;
 		else {
 			konamiReset();
 			return;
 		}
 	}
-	if (konami[10] == false) {
+	else if (konami[10] == false) {
 		if (data.btn.dPad == DPAD_DOWN) konami[10] = true;
 		else {
 			konamiReset();
 			return;
 		}
 	}
-	if (konami[3] == false) {
+	else if (konami[3] == false) {
 		if (data.btn.dPad == DPAD_LEFT) konami[3] = true;
 		else {
 			konamiReset();
 			return;
 		}
 	}
-	if (konami[4] == false) {
+	else if (konami[4] == false) {
 		if (data.btn.dPad == DPAD_RIGHT) konami[4] = true;
 		else {
 			konamiReset();
 			return;
 		}
 	}
-	if (konami[5] == false) {
+	else if (konami[5] == false) {
 		if (data.btn.dPad == DPAD_LEFT) konami[5] = true;
 		else {
 			konamiReset();
 			return;
 		}
 	}
-	if (konami[6] == false) {
+	else if (konami[6] == false) {
 		if (data.btn.dPad == DPAD_RIGHT) konami[6] = true;
 		else {
 			konamiReset();
 			return;
 		}
 	}
-	if (konami[7] == false) {
+	else if (konami[7] == false) {
 		if (data.btn.Bbutton >0) konami[7] = true;
 		else {
 			konamiReset();
 			return;
 		}
 	}
-	if (konami[8] == false) {
+	else if (konami[8] == false) {
 		if (data.btn.Abutton > 0) konami[8] = true;
 		else {
 			konamiReset();
 			return;
 		}
 	}
-	if (konami[9] == false) {
+	else if (konami[9] == false) {
 		if (data.btn.Startbutton > 0) {
 			konami[9] = true;
 			itHappened = true;
