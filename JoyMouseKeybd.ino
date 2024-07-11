@@ -13,7 +13,9 @@ the GPL2 ("Copyleft").
 
 ////
 mouse and keyboard in boot mode to midi
-mouse uses notes 123-127 because most keyboards don't go that high
+mouse uses notes 123-127 
+joy uses notes 102 thru 122
+most keyboards in boot mode appear to go up to 101 for output values
 uses libaries:
 https://www.arduino.cc/reference/en/libraries/usb-host-shield-library-2.0/
 https://github.com/AlanFord/Logitech_F310_and_Arduino
@@ -25,118 +27,53 @@ everything seems to work better with a hub as a filter if connected to a PC
 #include <hidboot.h>
 #include <usbhub.h>
 #include <SPI.h>
+//#include "joy.h"
+#include "mouse.h"
+#include "keyboard.h"
 #include "lf310.h"
-#define REPORT_BUFFER_SIZE 128//best way to log for keyboard report data
-#define MOUSE_RESOLUTION 512//higher number means less sensitive mouse
-#define MOUSE_DIVISOR 4//should always be mouseresolution/128
-
-#define MOUSE_NOTE_ON 0x91
-#define KEYBOARD_NOTE_ON 0X90
-#define JOY_NOTE_ON 0x92
-
-#define JOY_OFFSET 102//top channel for keyboards tested so far is 101
-//also the mouse is mapped to start at 123, so this fits perfectly once you add the konami code.
-int mouseX;
-int mouseY;
+#include "defs.h"
 
 //joystick analog stick pos data
 uint8_t oldX = 128;
 uint8_t oldY = 128;
 uint8_t oldZ = 128;
 uint8_t oldRz = 128;
-byte joyState[13];//holds joy button data
+byte joyState[14];//holds joy button data
 
 USB     Usb;
-USBHub  Hub1(&Usb);//probably only need one hub
-//USBHub  Hub2(&Usb);
-//USBHub  Hub3(&Usb);
-//USBHub  Hub4(&Usb);
+USBHub  Hub1(&Usb);//probably only need one hub but what the heck, someone might plug in multiple keypads
+USBHub  Hub2(&Usb);
+USBHub  Hub3(&Usb);
+USBHub  Hub4(&Usb);
+KbdRptParser KbdPrs;
+MouseRptParser MousePrs;
 LF310 lf310(&Usb);//joy class instance, logitech f310 ONLY
 HIDBoot<USB_HID_PROTOCOL_KEYBOARD>    HidKeyboard(&Usb);
 HIDBoot<USB_HID_PROTOCOL_MOUSE>    HidMouse(&Usb);
 HIDBoot < USB_HID_PROTOCOL_KEYBOARD | USB_HID_PROTOCOL_MOUSE > HidComposite(&Usb);//THIS MUST GO AFTER THE OTHER MOUSE AND KBD DECLARATIONS FOR A HUB TO WORK
 bool konami[11];
 
-class KbdRptParser : public KeyboardReportParser {
-public:
-	bool mouseOrJoyDevice = false;
-	uint8_t incomingData[REPORT_BUFFER_SIZE];
-	uint8_t oldData[REPORT_BUFFER_SIZE];
-
-	void sendMidiNote(byte pitch, byte velocity) {//send noteOn command 0x90 plus data
-		if (pitch > 127) pitch = 127;
-		if (velocity > 127) velocity = 127;
-		Serial.write(0x90);
-		Serial.write(pitch);
-		Serial.write(velocity);
-		delay(1);//allow time for note to be sent! prevents crashes.
-	}
-
-	virtual void Parse(USBHID* hid, bool is_rpt_id, uint8_t len, uint8_t* buf) {
-		for (int i = 0; i < REPORT_BUFFER_SIZE; i++) {
-			if (i < len)incomingData[i] = buf[i];
-			else incomingData[i] = 0;
-
-			if (incomingData[i] != oldData[i]) {//log the value if it's new, and make sure it gets set to zero when released.
-				if (incomingData[i] != 0)sendMidiNote(incomingData[i], 127);//activate note
-				else sendMidiNote(oldData[i], 0);//deactivate the note
-				oldData[i] = incomingData[i];
-			}
-		}
-	};
-};
-
-class MouseRptParser : public MouseReportParser {
-public:
-	void sendMidiNote(byte pitch, byte velocity) {//send noteOn command 0x90 plus data
-		if (pitch > 127) pitch = 127;
-		if (velocity > 127) velocity = 127;
-		Serial.write(0x90);
-		Serial.write(pitch);
-		Serial.write(velocity);
-		delay(1);
-	}
-protected:
-	void OnMouseMove(MOUSEINFO* mi) {//notes 127 and 126
-		mouseX += mi->dX;
-		mouseY -= mi->dY;//INVERT DIRECTION
-		if (mouseX > MOUSE_RESOLUTION) mouseX = MOUSE_RESOLUTION;
-		else if (mouseX < 0)mouseX = 0;
-		if (mouseY > MOUSE_RESOLUTION) mouseY = MOUSE_RESOLUTION;
-		else if (mouseY < 0)mouseY = 0;
-
-		sendMidiNote(127, mouseY / MOUSE_DIVISOR);
-		sendMidiNote(126, mouseX / MOUSE_DIVISOR);
-	};
-	void OnLeftButtonUp(MOUSEINFO* mi) {//note 124
-		sendMidiNote(123, 0);
-	};
-	void OnLeftButtonDown(MOUSEINFO* mi) {
-		sendMidiNote(123, 127);
-	};
-	void OnRightButtonUp(MOUSEINFO* mi) {//note 126
-		sendMidiNote(125, 0);
-	};
-	void OnRightButtonDown(MOUSEINFO* mi) {
-		sendMidiNote(125, 127);
-	};
-	void OnMiddleButtonUp(MOUSEINFO* mi) {//note 125
-		sendMidiNote(124, 0);
-	};
-	void OnMiddleButtonDown(MOUSEINFO* mi) {
-		sendMidiNote(124, 127);
-	};
-};
 
 void sendMidiNoteJoy(byte pitch, byte velocity) {//send noteOn command 0x90 plus data
 	if (pitch > 127) pitch = 127;
 	if (velocity > 127) velocity = 127;
-	Serial.write(0x90);
-	Serial.write(pitch);
-	Serial.write(velocity);
-	konamiCheck(lf310.lf310Data, velocity);//check to see if someone did this
+	if (konamiCheck(lf310.lf310Data, velocity)) {
+		//sendMidiNoteJoy(122, 127);//check to see if someone did this
+		Serial.write(JOY_NOTE_ON);
+		Serial.write(122);
+		Serial.write(127);
+		delay(20);
+		Serial.write(JOY_NOTE_ON);
+		Serial.write(122);
+		Serial.write(0);
+	}
+	else {
+		Serial.write(JOY_NOTE_ON);
+		Serial.write(pitch);
+		Serial.write(velocity);
+		delay(1);
+	}
 	//Serial.println("Note: " + String(pitch) + "Vel: " + String(velocity));
-	delay(1);
 }
 
 void konamiReset() {
@@ -145,86 +82,86 @@ void konamiReset() {
 	}
 }
 
-void konamiCheck(LF310Data data, byte vel) {
+bool konamiCheck(LF310Data data, byte vel) {
 	if (vel == 0) return;
 	//code is up up dn dn L R L R B A START
 	if (konami[0] == false) {
-		if (data.btn.dPad == DPAD_UP) { konami[0] = true; return; }
+		if (data.btn.dPad == DPAD_UP) { konami[0] = true; return false; }
 		else {
 			konamiReset();
-		return;
+		return false;
 		}
 	}
 	else if (konami[1] == false) {
-		if (data.btn.dPad == DPAD_UP) {konami[1] = true; return;
+		if (data.btn.dPad == DPAD_UP) {konami[1] = true; return false;
 	}
 		else {
 			konamiReset();
-			return;
+			return false;
 		}
 	}
 	else if (konami[2] == false) {
-		if (data.btn.dPad == DPAD_DOWN){ konami[2] = true; return;
+		if (data.btn.dPad == DPAD_DOWN){ konami[2] = true; return false;
 	}
 		else {
 			konamiReset();
-			return;
+			return false;
 		}
 	}
 	else if (konami[10] == false) {
-		if (data.btn.dPad == DPAD_DOWN) {konami[10] = true; return;
+		if (data.btn.dPad == DPAD_DOWN) {konami[10] = true; return false;
 	}
 		else {
 			konamiReset();
-			return;
+			return false;
 		}
 	}
 	else if (konami[3] == false) {
-		if (data.btn.dPad == DPAD_LEFT) {konami[3] = true; return;
+		if (data.btn.dPad == DPAD_LEFT) {konami[3] = true; return false;
 	}
 		else {
 			konamiReset();
-			return;
+			return false;
 		}
 	}
 	else if (konami[4] == false) {
-		if (data.btn.dPad == DPAD_RIGHT) {konami[4] = true; return;
+		if (data.btn.dPad == DPAD_RIGHT) {konami[4] = true; return false;
 	}
 		else {
 			konamiReset();
-			return;
+			return false;
 		}
 	}
 	else if (konami[5] == false) {
-		if (data.btn.dPad == DPAD_LEFT) {konami[5] = true; return;
+		if (data.btn.dPad == DPAD_LEFT) {konami[5] = true; return false;
 	}
 		else {
 			konamiReset();
-			return;
+			return false;
 		}
 	}
 	else if (konami[6] == false) {
-		if (data.btn.dPad == DPAD_RIGHT){ konami[6] = true; return;
+		if (data.btn.dPad == DPAD_RIGHT){ konami[6] = true; return false;
 	}
 		else {
 			konamiReset();
-			return;
+			return false;
 		}
 	}
 	else if (konami[7] == false) {
-		if (data.btn.Bbutton >0) {konami[7] = true; return;
+		if (data.btn.Bbutton >0) {konami[7] = true; return false;
 	}
 		else {
 			konamiReset();
-			return;
+			return false;
 		}
 	}
 	else if (konami[8] == false) {
-		if (data.btn.Abutton > 0){ konami[8] = true; return;
+		if (data.btn.Abutton > 0){ konami[8] = true; return false;
 	}
 		else {
 			konamiReset();
-			return;
+			return false;
 		}
 	}
 	else if (konami[9] == false) {
@@ -233,11 +170,12 @@ void konamiCheck(LF310Data data, byte vel) {
 		}
 		else {
 			konamiReset();
-			return;
+			return false;
 		}
 	}
 	//Serial.println("Konami!");
-	konamiReset();sendMidiNoteJoy(122, 127);
+	konamiReset(); 
+	return true;//sendMidiNoteJoy(122, 127);
 	delay(25);//delay one dmx framesendMidiNoteJoy(122, 0);
 }
 
@@ -324,6 +262,14 @@ void lf310JoystickParse() {
 			joyState[11] = lf310.buttonClickState.RJSP;
 		}
 
+		//byte mode = lf310.lf310Data.Extra & B00001000;//gets the mode bit from the "extra" data
+		//if (mode != joyState[13]) {//
+		//	//Serial.println("mode: " + mode);
+		//	if(mode>0)sendMidiNoteJoy(JOY_OFFSET + 20, 127);
+		//	else sendMidiNoteJoy(JOY_OFFSET + 20, 0);
+		//	joyState[13] = mode;
+		//}
+
 		if (lf310.lf310Data.btn.dPad != joyState[12]) {//
 			switch (lf310.lf310Data.btn.dPad) {//send new data
 			case DPAD_UP:
@@ -368,9 +314,6 @@ void lf310JoystickParse() {
 		
 	}
 }
-KbdRptParser KbdPrs;
-MouseRptParser MousePrs;
-
 
 void setup() {
 	Serial.begin(31250);//midi baud rate is 31250
