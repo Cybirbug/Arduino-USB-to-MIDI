@@ -26,7 +26,6 @@ More gamepads will probably only be supported if someone else writes a driver an
 
 
 ToDo: 
-- sp
-lit into files for classes
+- split lf310 into its own class outside of the main file
 - mouse wheel support
 - fix lf310 LR trigger values
